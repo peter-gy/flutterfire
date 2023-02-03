@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -6,6 +7,7 @@ import 'package:desktop_webview_auth/desktop_webview_auth.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fba;
 import 'package:flutterfire_ui/i10n.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../../widgets/apple_sign_in_button.dart' show AppleProviderButtonStyle;
@@ -32,6 +34,19 @@ String sha256ofString(String input) {
 }
 
 class AppleProviderImpl extends OAuthProvider {
+  Future<void> saveToSharedPreferences(
+    AuthorizationCredentialAppleID appleCredential,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if ((appleCredential.givenName ?? '').isNotEmpty) {
+      await prefs.setString('userFirstName', appleCredential.givenName!);
+    }
+    if ((appleCredential.familyName ?? '').isNotEmpty) {
+      await prefs.setString('userLastName', appleCredential.familyName!);
+    }
+  }
+
   @override
   Future<fba.OAuthCredential> signIn() async {
     final rawNonce = generateNonce();
@@ -45,6 +60,9 @@ class AppleProviderImpl extends OAuthProvider {
       ],
       nonce: nonce,
     );
+
+    // Save the credentials to shared preferences
+    unawaited(saveToSharedPreferences(appleCredential));
 
     // Create an `OAuthCredential` from the credential returned by Apple.
     final oauthCredential = fba.OAuthProvider('apple.com').credential(
